@@ -151,3 +151,166 @@ class Game:
     
     def reset_vis(self):
         self.vis = [[False for _ in range(self.cols)] for _ in range(self.rows)]
+        def add_cycles_targeting_end(self):
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if random.random() < 0.05:
+                    if i > 0 and self.north[i][j] == 1:
+                        self.north[i][j] = 0
+                if random.random() < 0.05:
+                    if j < self.cols - 1 and self.east[i][j] == 1:
+                        self.east[i][j] = 0
+        
+        end_r, end_c = self.end if self.end else (self.rows//2, self.cols-1)
+        for _ in range(3):
+            r = max(0, min(self.rows-1, end_r + random.randint(-2, 2)))
+            c = max(0, min(self.cols-1, end_c + random.randint(-2, 2)))
+            if r > 0 and self.north[r][c] == 1:
+                self.north[r][c] = 0
+            if c < self.cols - 1 and self.east[r][c] == 1:
+                self.east[r][c] = 0
+    
+    def solve_backtrack(self, delay=None):
+        stack = [(self.start[0], self.start[1], [])]
+        self.vis[self.start[0]][self.start[1]] = True
+        self.dead = []
+        
+        while stack:
+            r, c, p = stack.pop()
+            cur = p + [(r, c)]
+            
+            if delay:
+                if not delay(cur, self.vis, self.dead):
+                    return None
+            
+            if (r, c) == self.end:
+                self.path = cur
+                return cur
+            
+            dirs = ['n', 's', 'w', 'e']
+            random.shuffle(dirs)
+            
+            for d in dirs:
+                nr, nc = r, c
+                ok = False
+                if d == 'n' and r > 0 and self.north[r][c] == 0:
+                    nr, nc = r-1, c
+                    ok = True
+                elif d == 's' and r < self.rows-1 and self.north[r+1][c] == 0:
+                    nr, nc = r+1, c
+                    ok = True
+                elif d == 'w' and c > 0 and self.east[r][c-1] == 0:
+                    nr, nc = r, c-1
+                    ok = True
+                elif d == 'e' and c < self.cols-1 and self.east[r][c] == 0:
+                    nr, nc = r, c+1
+                    ok = True
+                
+                if ok and not self.vis[nr][nc]:
+                    self.vis[nr][nc] = True
+                    stack.append((nr, nc, cur))
+            
+            has_unvisited = False
+            for d in ['n', 's', 'w', 'e']:
+                nr, nc = r, c
+                ok = False
+                if d == 'n' and r > 0 and self.north[r][c] == 0:
+                    nr, nc = r-1, c
+                    ok = True
+                elif d == 's' and r < self.rows-1 and self.north[r+1][c] == 0:
+                    nr, nc = r+1, c
+                    ok = True
+                elif d == 'w' and c > 0 and self.east[r][c-1] == 0:
+                    nr, nc = r, c-1
+                    ok = True
+                elif d == 'e' and c < self.cols-1 and self.east[r][c] == 0:
+                    nr, nc = r, c+1
+                    ok = True
+                if ok and not self.vis[nr][nc]:
+                    has_unvisited = True
+                    break
+            
+            if not has_unvisited and (r, c) != self.end and (r, c) not in self.dead:
+                self.dead.append((r, c))
+                if delay:
+                    delay(cur, self.vis, self.dead)
+        
+        return None
+    
+    def solve_shoulder(self, delay=None):
+        r, c = self.start
+        facing = 'e'
+        path = [(r, c)]
+        visited = set()
+        visited.add((r, c))
+        stuck = 0
+        
+        while (r, c) != self.end and stuck < 5000:
+            if delay:
+                if not delay(path, visited, []):
+                    return None
+            
+            order = ['left', 'forward', 'right', 'back']
+            
+            for turn in order:
+                if facing == 'n':
+                    if turn == 'left':
+                        dr, dc, new_facing = 0, -1, 'w'
+                    elif turn == 'forward':
+                        dr, dc, new_facing = -1, 0, 'n'
+                    elif turn == 'right':
+                        dr, dc, new_facing = 0, 1, 'e'
+                    else:
+                        dr, dc, new_facing = 1, 0, 's'
+                elif facing == 's':
+                    if turn == 'left':
+                        dr, dc, new_facing = 0, 1, 'e'
+                    elif turn == 'forward':
+                        dr, dc, new_facing = 1, 0, 's'
+                    elif turn == 'right':
+                        dr, dc, new_facing = 0, -1, 'w'
+                    else:
+                        dr, dc, new_facing = -1, 0, 'n'
+                elif facing == 'w':
+                    if turn == 'left':
+                        dr, dc, new_facing = 1, 0, 's'
+                    elif turn == 'forward':
+                        dr, dc, new_facing = 0, -1, 'w'
+                    elif turn == 'right':
+                        dr, dc, new_facing = -1, 0, 'n'
+                    else:
+                        dr, dc, new_facing = 0, 1, 'e'
+                else:
+                    if turn == 'left':
+                        dr, dc, new_facing = -1, 0, 'n'
+                    elif turn == 'forward':
+                        dr, dc, new_facing = 0, 1, 'e'
+                    elif turn == 'right':
+                        dr, dc, new_facing = 1, 0, 's'
+                    else:
+                        dr, dc, new_facing = 0, -1, 'w'
+                
+                nr, nc = r + dr, c + dc
+                
+                if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                    blocked = False
+                    if new_facing == 'n' and self.north[nr][nc] == 1:
+                        blocked = True
+                    elif new_facing == 's' and self.north[r][c] == 1:
+                        blocked = True
+                    elif new_facing == 'w' and self.east[nr][nc-1] == 1:
+                        blocked = True
+                    elif new_facing == 'e' and self.east[r][c] == 1:
+                        blocked = True
+                    
+                    if not blocked:
+                        r, c, facing = nr, nc, new_facing
+                        if (r, c) not in path:
+                            path.append((r, c))
+                        stuck = 0
+                        break
+            else:
+                stuck += 1
+        
+        self.path = path
+        return path if (r, c) == self.end else None

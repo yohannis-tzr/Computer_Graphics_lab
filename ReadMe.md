@@ -1,3 +1,7 @@
+NAME: YOHANNIS TADESSE
+SECTION: 2
+ID: UGR/7497/16
+
 Maze Generator & Solver
 
 Overview
